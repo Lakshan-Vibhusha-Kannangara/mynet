@@ -199,28 +199,29 @@ if [[ ! -z "$NVIDIA_PRESENT" ]]; then
 fi
 
 # Check if Docker is installed
+# Check if Docker is installed
 if command -v docker &>/dev/null; then
     echo "Docker is already installed."
 else
     echo "Docker is not installed. Proceeding with installations..."
     # Install Docker-ce keyring
-    apt update -y
-    apt install -y ca-certificates curl gnupg
-    install -m 0755 -d /etc/apt/keyrings
-    FILE=/etc/apt/keyrings/docker.gpg
+    apk update --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.14/main
+    apk add --no-cache ca-certificates curl gnupg
+    install -m 0755 -d /etc/apk/keys
+    FILE=/etc/apk/keys/docker.gpg
     if [ -f "$FILE" ]; then
         rm "$FILE"
     fi
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o "$FILE"
-    chmod a+r /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apk/keys/docker.gpg
 
-    # Add Docker-ce repository to Apt sources and install
+    # Add Docker-ce repository to Apk sources and install
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      "https://download.docker.com/linux/ubuntu \
       $(. /etc/os-release; echo "$VERSION_CODENAME") stable" | \
-      tee /etc/apt/sources.list.d/docker.list > /dev/null
-    apt update -y
-    apt -y install docker-ce
+      tee -a /etc/apk/repositories > /dev/null
+    apk update --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.14/main
+    apk -y add docker-ce
 fi
 
 # Check if docker-compose is installed
@@ -230,7 +231,7 @@ else
     echo "Docker-compose is not installed. Proceeding with installations..."
 
     # Install docker-compose subcommand
-    apt -y install docker-compose-plugin
+    apk -y add docker-compose-plugin
     ln -sv /usr/libexec/docker/cli-plugins/docker-compose /usr/bin/docker-compose
     docker-compose --version
 fi
@@ -242,14 +243,19 @@ if [[ ! -z "$NVIDIA_PRESENT" ]]; then
     else
         echo "nvidia-docker does not seem to be enabled. Proceeding with installations..."
         distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add
-        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list
-        apt-get update && apt-get install -y nvidia-container-toolkit
-        systemctl restart docker 
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apk add --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.14/main --no-cache gnupg
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | tee /etc/apk/repositories
+        apk --no-cache update --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/v3.14/main
+        apk --no-cache -y add nvidia-container-toolkit
+        /etc/init.d/docker restart
         docker run --gpus all nvidia/cuda:11.0.3-base-ubuntu18.04 nvidia-smi
     fi
 fi
-apt-mark hold nvidia* libnvidia*
+
+# Hold NVIDIA packages
+apk -y add nvidia* libnvidia*
+
+
 # Add docker group and user to group docker
 groupadd docker || true
 usermod -aG docker $USER || true
