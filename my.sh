@@ -253,7 +253,7 @@ if [[ ! -z "$NVIDIA_PRESENT" ]]; then
 fi
 
 # Hold NVIDIA packages
-apk -y add nvidia* libnvidia*
+apk add --no-cache nvidia* libnvidia*
 
 
 # Add docker group and user to group docker
